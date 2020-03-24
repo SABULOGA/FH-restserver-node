@@ -1,16 +1,18 @@
 
 const express = require('express');
 const bcrypt = require('bcrypt');
-const Usuario = require('../models/usuario.js');
 const _ = require('underscore');
+
+const Usuario = require('../models/usuario.js');
+const {verificaToken, verificaAdmin_Role} = require('../middlewares/autenticacion');
 
 const app = express();
 
-app.get('/usuario', function(req, res) {
+app.get('/usuario', verificaToken, (req, res) => {
     let desde = req.query.desde || 0;
     desde = Number(desde);
 
-    let limite = req.query.limite || 5;
+    let limite = req.query.limite || 20;
     limite = Number(limite);
 
     Usuario.find({estado: true}, 'nombre email role estado google img')
@@ -24,7 +26,7 @@ app.get('/usuario', function(req, res) {
                 });
             }
 
-            Usuario.count({estado: true}, (err, conteo) => {
+            Usuario.countDocuments({estado: true}, (err, conteo) => {
                 res.json({
                     ok: true,
                     usuarios,
@@ -35,7 +37,7 @@ app.get('/usuario', function(req, res) {
         });
 });
 
-app.post('/usuario', function(req, res) {
+app.post('/usuario', [verificaToken, verificaAdmin_Role], (req, res) => {
     let body = req.body;
 
     let usuario = new Usuario({
@@ -60,7 +62,7 @@ app.post('/usuario', function(req, res) {
     });
 });
 
-app.put('/usuario/:id', function(req, res) {
+app.put('/usuario/:id', [verificaToken, verificaAdmin_Role], (req, res) => {
     let id = req.params.id;
     let body = _.pick(req.body, ['nombre', 'email', 'img', 'role', 'estado']);
 
@@ -79,12 +81,12 @@ app.put('/usuario/:id', function(req, res) {
     });
 });
 
-app.delete('/usuario/:id', function(req, res) {
+app.delete('/usuario/:id', [verificaToken, verificaAdmin_Role], (req, res) => {
     let id = req.params.id;
-    // Usuario.findByIdAndRemove(id, (err, usuarioBorrado) => {
     let cambiaEstado = {
         estado: false
     };
+
     Usuario.findByIdAndUpdate(id, cambiaEstado, {new: true}, (err, usuarioBorrado) => {
         if (err) {
             return res.status(400).json({
